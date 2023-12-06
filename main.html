@@ -73,41 +73,25 @@
 
         function formatAndRestrictInput(inputField, length) {
             inputField.addEventListener('input', function (event) {
-                let inputValue = event.target.value.replace(/\D/g, ''); // Nur Zahlen zulassen
+                let inputValue = event.target.value.replace(/\D/g, '');
 
-                // Begrenzen Sie die Eingabe auf die erforderliche Länge
                 if (inputValue.length > length) {
                     inputValue = inputValue.slice(0, length);
                 }
 
-                // Fügen Sie Bindestriche entsprechend dem Datumsformat hinzu (z. B. DD-MM-YYYY)
                 if (inputValue.length > 4) {
-                    inputValue = inputValue.slice(0, 2) + '-' + inputValue.slice(2, 4) + '-' + inputValue.slice(4);
+                    inputValue = inputValue.slice(0, 4) + '-' + inputValue.slice(4, 6) + '-' + inputValue.slice(6);
                 } else if (inputValue.length > 2) {
-                    inputValue = inputValue.slice(0, 2) + '-' + inputValue.slice(2);
+                    inputValue = inputValue.slice(0, 2) + '-' + inputValue.slice(2, 4);
                 }
 
-                // Setzen Sie den bearbeiteten Wert zurück ins Eingabefeld
                 event.target.value = inputValue;
-            });
-
-            // Umdrehen des Datumsformats beim Verlassen des Eingabefelds
-            inputField.addEventListener('blur', function (event) {
-                const inputValue = event.target.value;
-
-                if (inputValue.length === length) {
-                    const day = inputValue.slice(0, 2);
-                    const month = inputValue.slice(3, 5);
-                    const year = inputValue.slice(6);
-
-                    event.target.value = `${year}-${month}-${day}`;
-                }
             });
         }
 
-        // Formatieren und Einschränken der Eingabe für Start- und Enddatum
-        formatAndRestrictInput(startDateInput, 10); // Annahme: Datum mit zehn Zeichen (DD-MM-YYYY)
-        formatAndRestrictInput(endDateInput, 10);
+        formatAndRestrictInput(startDateInput, 8);
+        formatAndRestrictInput(endDateInput, 8);
+
         function isValidDateFormat(dateString) {
             const dateRegex = /^(19[789]\d|20[012]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
             return dateRegex.test(dateString);
