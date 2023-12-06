@@ -68,7 +68,7 @@
 
         async function callToApi(url) {
             const response = await fetch(url);
-            console.info("HTTP-Status: Code " + response.status);
+            console.info("HTTP-Status: Code " + response.status + "\nURL: " + url);
 
             if (response.ok) {
                 const body = await response.json();
@@ -110,12 +110,10 @@
                     chartArray.push(body.hourly.temperature_2m[index]);
                 });
 
-
                 temperatureChart.data.labels = timeArray;
                 temperatureChart.data.datasets[0].data = chartArray;
                 temperatureChart.update();
             }
-
         }
 
         async function fetchWeatherData() {
@@ -177,7 +175,7 @@
                 const apiUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${selectedLocation}`;
 
                 const response = await fetch(apiUrl);
-                console.info("HTTP-Status: Code " + response.status);
+                console.info("HTTP-Status: Code " + response.status + "\nURL: " + apiUrl);
 
                 if (response.ok) {
                     const data = await response.json();
