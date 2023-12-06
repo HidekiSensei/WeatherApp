@@ -140,3 +140,53 @@ tr:hover {
 .hidden {
     display: none;
 }
+
+/* Stil für die Ortsauswahlliste */
+.location-input-container {
+    position: relative;
+    display: inline-block;
+}
+
+.location-list {
+    position: absolute;
+    z-index: 1;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: calc(100% - 2px); /* Vollbreite des Inputs, -2px für den Rand */
+    margin-top: 1px; /* 1px Platz zwischen Input und Dropdown */
+}
+
+/* Einzelne Listenelemente */
+.location-item {
+    padding: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.location-item:hover {
+    background-color: #f0f0f0;
+}
+
+/* Stil für den ausgewählten Ort */
+.location-item.selected {
+    background-color: #3498db;
+    color: #fff;
+}
+
+/* Stil für den Ortename */
+.location-name {
+    font-weight: bold;
+}
+
+/* Stil für den Ort-Bundesstaat */
+.location-state {
+    color: #777;
+}
+
+/* Stil für das Ort-Land */
+.location-country {
+    color: #555;
+}

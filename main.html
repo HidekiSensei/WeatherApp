@@ -5,8 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Weather App</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <title>Weather App</title>
+    <link rel="icon" href="weather-partly-cloudy.png">
 </head>
 
 <script>
@@ -16,39 +18,104 @@
         const endDateInput = document.getElementById('endDate');
         const historyChecker = document.getElementById('historyChecker');
         const chartTableSwitch = document.getElementById('chartTableSwitch');
+        const tableContainer = document.getElementById('tableContainer');
+        const chartContainer = document.getElementById('chartContainer');
         var url = "";
 
         const locationList = document.getElementById('locationList');
         const locationSelect = document.getElementById('location');
 
-        const temperatureChartCanvas = document.getElementById('temperatureChart');
-        const temperatureChart = new Chart(temperatureChartCanvas, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Temperaturverlauf',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    data: [],
-                    fill: false,
-                }]
-            },
+        if (chartTableSwitch.checked) {
+            tableContainer.style.display = 'none';
+            chartContainer.style.display = 'block';
+        } else {
+            tableContainer.style.display = 'block';
+            chartContainer.style.display = 'none';
+        }
+
+        const temperatureChart = new Chart(document.getElementById("temperatureChart"), {
+            type: "line",
             options: {
                 scales: {
                     x: {
-                        type: 'linear',
-                        position: 'bottom'
+                        type: "time", // Änderung auf 'time'
+                        position: "bottom",
+                        title: {
+                            display: true,
+                            text: "", // Initial leeren Text setzen
+                        },
+                        time: {
+                            unit: 'day', // Änderung auf 'day'
+                            displayFormats: {
+                                hour: 'HH:mm', // Anzeigeformat für Stunden
+                            },
+                        },
                     },
                     y: {
-                        beginAtZero: true
-                    }
+                        type: "linear",
+                        position: "left",
+                        title: {
+                            display: true,
+                            text: "Temperatur",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false, // Legend ausblenden
+                    },
+                },
+                title: {
+                    text: "",
                 }
-            }
+            },
         });
 
+        function formatAndRestrictInput(inputField, length) {
+            inputField.addEventListener('input', function (event) {
+                let inputValue = event.target.value.replace(/\D/g, ''); // Nur Zahlen zulassen
+
+                // Begrenzen Sie die Eingabe auf die erforderliche Länge
+                if (inputValue.length > length) {
+                    inputValue = inputValue.slice(0, length);
+                }
+
+                // Fügen Sie Bindestriche entsprechend dem Datumsformat hinzu (z. B. DD-MM-YYYY)
+                if (inputValue.length > 4) {
+                    inputValue = inputValue.slice(0, 2) + '-' + inputValue.slice(2, 4) + '-' + inputValue.slice(4);
+                } else if (inputValue.length > 2) {
+                    inputValue = inputValue.slice(0, 2) + '-' + inputValue.slice(2);
+                }
+
+                // Setzen Sie den bearbeiteten Wert zurück ins Eingabefeld
+                event.target.value = inputValue;
+            });
+
+            // Umdrehen des Datumsformats beim Verlassen des Eingabefelds
+            inputField.addEventListener('blur', function (event) {
+                const inputValue = event.target.value;
+
+                if (inputValue.length === length) {
+                    const day = inputValue.slice(0, 2);
+                    const month = inputValue.slice(3, 5);
+                    const year = inputValue.slice(6);
+
+                    event.target.value = `${year}-${month}-${day}`;
+                }
+            });
+        }
+
+        // Formatieren und Einschränken der Eingabe für Start- und Enddatum
+        formatAndRestrictInput(startDateInput, 10); // Annahme: Datum mit zehn Zeichen (DD-MM-YYYY)
+        formatAndRestrictInput(endDateInput, 10);
         function isValidDateFormat(dateString) {
             const dateRegex = /^(19[789]\d|20[012]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
             return dateRegex.test(dateString);
+        }
+
+        function isWithin24Hours(startDate, endDate) {
+            const diffInHours = Math.abs(endDate - startDate) / 36e5;
+            return diffInHours <= 24;
         }
 
         function getCurrentDate() {
@@ -73,46 +140,58 @@
             if (response.ok) {
                 const body = await response.json();
                 const tempArray = [];
+                const timeArray = [];
 
                 body.hourly.time.forEach((element, index) => {
                     element = element.replace('T', ' ');
 
-                    const tempData = {
-                        date: element,
-                        value: body.hourly.temperature_2m[index] + body.hourly_units.temperature_2m
-                    };
+                    const tempData = body.hourly.temperature_2m[index];
+                    const timeData = new Date(element);
+
                     tempArray.push(tempData);
+                    timeArray.push(timeData);
                 });
 
-                const table = document.getElementById("tempTable");
+                if (chartTableSwitch.checked) {
+                    temperatureChart.data = {
+                        labels: timeArray,
+                        datasets: [{
+                            label: 'Temperatur',
+                            data: tempArray,
+                            fill: false,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            tension: 0.1,
+                        }],
+                    };
 
-                while (table.firstChild) {
-                    table.removeChild(table.firstChild);
+                    // Wenn die Zeitspanne kleiner als einen Tag ist, füge das Datum zum Titel hinzu
+                    if (isWithin24Hours(timeArray[0], timeArray[timeArray.length - 1])) {
+                        temperatureChart.options.scales.x.time.unit = 'hour';
+                        temperatureChart.options.title.text = `Temperatur über die Zeit - ${timeArray[0].toLocaleDateString()}`;
+                    } else {
+                        temperatureChart.options.scales.x.time.unit = 'day';
+                        temperatureChart.options.title.text = 'Temperatur über die Zeit';
+                    }
+
+                    temperatureChart.update();
+                } else {
+                    const table = document.getElementById("tempTable");
+                    while (table.firstChild) {
+                        table.removeChild(table.firstChild);
+                    }
+                    tempArray.forEach((tempData, index) => {
+                        const row = document.createElement('tr');
+                        const dateCell = document.createElement('td');
+                        const valueCell = document.createElement('td');
+
+                        dateCell.innerHTML = new Date(timeArray[index]).toLocaleString();
+                        valueCell.innerHTML = tempData;
+
+                        row.appendChild(dateCell);
+                        row.appendChild(valueCell);
+                        table.appendChild(row);
+                    });
                 }
-                tempArray.forEach((tempData) => {
-                    const row = document.createElement('tr');
-                    const dateCell = document.createElement('td');
-                    const valueCell = document.createElement('td');
-
-                    dateCell.innerHTML = tempData.date;
-                    valueCell.innerHTML = tempData.value;
-
-                    row.appendChild(dateCell);
-                    row.appendChild(valueCell);
-                    table.appendChild(row);
-                });
-
-                const chartArray = [];
-                const timeArray = [];
-
-                body.hourly.time.forEach((element, index) => {
-                    timeArray.push(element);
-                    chartArray.push(body.hourly.temperature_2m[index]);
-                });
-
-                temperatureChart.data.labels = timeArray;
-                temperatureChart.data.datasets[0].data = chartArray;
-                temperatureChart.update();
             }
         }
 
@@ -155,8 +234,6 @@
 
         chartTableSwitch.addEventListener('change', function () {
             const isChart = this.checked;
-            const tableContainer = document.getElementById('tableContainer');
-            const chartContainer = document.getElementById('chartContainer');
 
             if (isChart) {
                 tableContainer.style.display = 'none';
@@ -165,7 +242,10 @@
                 tableContainer.style.display = 'block';
                 chartContainer.style.display = 'none';
             }
-            fetchWeatherData();
+
+            if (locationSelect.getAttribute('data-lat') && locationSelect.getAttribute('data-long')){
+                fetchWeatherData();
+            }
         });
 
         locationSelect.addEventListener('input', async function () {
@@ -208,10 +288,15 @@
                                 locationSelect.setAttribute('data-long', location.longitude)
                                 locationSelect.setAttribute('data-lat', location.latitude)
                                 locationList.innerHTML = '';
+                                locationList.style.display = 'none';
                             });
 
                             locationList.appendChild(locationItem);
                         }))
+
+                        locationList.style.display = 'block';
+                    } else {
+                        locationList.style.display = 'none';
                     }
                 } else {
                     console.error('Fehler beim Abrufen der Daten');
@@ -240,9 +325,10 @@
     <div class="header">
         <div class="form-container">
             <label for="location">Ort:</label>
-            <input type="text" id="location" class="location-input" placeholder="Ort eingeben">
-
-            <div id="locationList" class="location-list"></div>
+            <div class="location-input-container">
+                <input type="text" id="location" class="location-input" placeholder="Ort eingeben">
+                <div id="locationList" class="location-list" style="display: none;"></div>
+            </div>
 
             <label for="startDate">Start Date:</label>
             <input type="text" id="startDate" class="date-input" placeholder="YYYY-MM-DD">
@@ -286,7 +372,7 @@
         </table>
     </div>
 
-    <div id="chartContainer" style="display: none;" class="chart-container">
+    <div id="chartContainer" class="chart-container">
         <canvas id="temperatureChart"></canvas>
     </div>
 </body>
