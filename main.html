@@ -179,7 +179,7 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    locationList.innerHTML = ''; // Leere die Liste
+                    locationList.innerHTML = '';
 
                     if (data.results) {
                         data.results.forEach((location => {
@@ -229,7 +229,6 @@
                 }
             });
 
-            // Beispiel: Ein Klick auf einen Button, um die Werte zu erhalten
             const submitButton = document.getElementById('submitButton');
             submitButton.addEventListener('click', fetchWeatherData);
         });
