@@ -27,6 +27,7 @@ label {
     width: 200px;
     padding: 8px;
     margin: 5px;
+    border-radius: 5px;
 }
 
 .invalid {

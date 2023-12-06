@@ -20,6 +20,7 @@
         const chartTableSwitch = document.getElementById('chartTableSwitch');
         const tableContainer = document.getElementById('tableContainer');
         const chartContainer = document.getElementById('chartContainer');
+        var yAxis = null;
         var url = "";
 
         const locationList = document.getElementById('locationList');
@@ -38,27 +39,20 @@
             options: {
                 scales: {
                     x: {
-                        type: "time", // Änderung auf 'time'
+                        type: "time",
                         position: "bottom",
                         title: {
                             display: true,
-                            text: "", // Initial leeren Text setzen
+                            text: "",
                         },
                         time: {
-                            unit: 'day', // Änderung auf 'day'
+                            unit: 'day',
                             displayFormats: {
-                                hour: 'HH:mm', // Anzeigeformat für Stunden
+                                hour: 'HH:mm',
                             },
                         },
                     },
-                    y: {
-                        type: "linear",
-                        position: "left",
-                        title: {
-                            display: true,
-                            text: "Temperatur",
-                        },
-                    },
+                    y: yAxis,
                 },
                 plugins: {
                     legend: {
@@ -87,25 +81,21 @@
             return `${parts[0]}.${parts[1]}.${parts[2]}`;
         }
 
-        // Funktion zum Hinzufügen von Bindestrichen und Einschränken der Eingabe auf Zahlen
         function formatAndRestrictInput(inputField, length) {
             inputField.setAttribute('placeholder', fillDate([]))
             inputField.addEventListener('input', function (event) {
-                let inputValue = event.target.value.replace(/\D/g, ''); // Nur Zahlen zulassen
+                let inputValue = event.target.value.replace(/\D/g, '');
 
-                // Begrenzen Sie die Eingabe auf die erforderliche Länge
                 if (inputValue.length > length) {
                     inputValue = inputValue.slice(0, length);
                 }
 
-                // Fügen Sie Bindestriche entsprechend dem Datumsformat hinzu (z. B. DD-MM-YYYY)
                 if (inputValue.length > 4) {
                     inputValue = inputValue.slice(0, 2) + '.' + inputValue.slice(2, 4) + '.' + inputValue.slice(4);
                 } else if (inputValue.length > 2) {
                     inputValue = inputValue.slice(0, 2) + '.' + inputValue.slice(2);
                 }
 
-                // Setzen Sie den bearbeiteten Wert zurück ins Eingabefeld
                 event.target.value = inputValue;
             });
 
@@ -168,6 +158,19 @@
                 const body = await response.json();
                 const tempArray = [];
                 const timeArray = [];
+                const temperatureUnit = body.hourly_units.temperature_2m;
+
+                yAxes = [{
+                    ticks: {
+                        callback: function (value) {
+                            return value + temperatureUnit;
+                        }
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Temperature'
+                    }
+                }];
 
                 body.hourly.time.forEach((element, index) => {
                     element = element.replace('T', ' ');
@@ -191,7 +194,6 @@
                         }],
                     };
 
-                    // Wenn die Zeitspanne kleiner als einen Tag ist, füge das Datum zum Titel hinzu
                     if (isWithin24Hours(timeArray[0], timeArray[timeArray.length - 1])) {
                         temperatureChart.options.scales.x.time.unit = 'hour';
                         temperatureChart.options.title.text = `Temperatur über die Zeit - ${timeArray[0].toLocaleDateString()}`;
@@ -212,13 +214,36 @@
                         const valueCell = document.createElement('td');
 
                         dateCell.innerHTML = new Date(timeArray[index]).toLocaleString();
-                        valueCell.innerHTML = tempData;
+                        valueCell.innerHTML = tempData + temperatureUnit;
 
                         row.appendChild(dateCell);
                         row.appendChild(valueCell);
                         table.appendChild(row);
                     });
                 }
+            }
+        }
+
+        function validateLocation() {
+            const latitude = locationSelect.getAttribute('data-lat');
+            const longitude = locationSelect.getAttribute('data-long');
+
+            const isValidLocation = latitude && longitude;
+
+            if (!isValidLocation) {
+                locationSelect.classList.add('invalid');
+            } else {
+                locationSelect.classList.remove('invalid');
+            }
+
+            checkIfButtonIsActiv();
+        }
+
+        function checkIfButtonIsActiv() {
+            if(locationSelect.classList.contains('invalid') || startDateInput.classList.contains('invalid') || endDateInput.classList.contains('invalid')) {
+                updateButton.disabled
+            } else {
+                updateButton.enable
             }
         }
 
@@ -342,6 +367,7 @@
                 } else {
                     this.classList.remove('invalid');
                 }
+                checkIfButtonIsActiv()
             });
 
             const submitButton = document.getElementById('submitButton');
@@ -392,7 +418,7 @@
                         Date
                     </th>
                     <th>
-                        Value
+                        Temperatur
                     </th>
                 </tr>
             </thead>
