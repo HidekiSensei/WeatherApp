@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Weather App</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const dateInputs = document.querySelectorAll('.date-input');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const historyChecker = document.getElementById('historyChecker');
+        const chartTableSwitch = document.getElementById('chartTableSwitch');
+        var url = "";
+
+        const locationList = document.getElementById('locationList');
+        const locationSelect = document.getElementById('location');
+
+        const temperatureChartCanvas = document.getElementById('temperatureChart');
+        const temperatureChart = new Chart(temperatureChartCanvas, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperaturverlauf',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    data: [],
+                    fill: false,
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom'
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        function isValidDateFormat(dateString) {
+            const dateRegex = /^(19[789]\d|20[012]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+            return dateRegex.test(dateString);
+        }
+
+        function getCurrentDate() {
+            const currentTime = new Date();
+            const day = currentTime.getDate() - 1;
+            const month = currentTime.getMonth() + 1;
+            const year = currentTime.getFullYear();
+
+            const formattedDay = day < 10 ? "0" + day : day;
+            const formattedMonth = month < 10 ? "0" + month : month;
+
+            const startDate = year + "-" + formattedMonth + "-" + formattedDay;
+            const endDate = year + "-" + formattedMonth + "-" + formattedDay;
+
+            return startDate
+        }
+
+        async function callToApi(url) {
+            const response = await fetch(url);
+            console.info("HTTP-Status: Code " + response.status);
+
+            if (response.ok) {
+                const body = await response.json();
+                const tempArray = [];
+
+                body.hourly.time.forEach((element, index) => {
+                    element = element.replace('T', ' ');
+
+                    const tempData = {
+                        date: element,
+                        value: body.hourly.temperature_2m[index] + body.hourly_units.temperature_2m
+                    };
+                    tempArray.push(tempData);
+                });
+
+                const table = document.getElementById("tempTable");
+
+                while (table.firstChild) {
+                    table.removeChild(table.firstChild);
+                }
+                tempArray.forEach((tempData) => {
+                    const row = document.createElement('tr');
+                    const dateCell = document.createElement('td');
+                    const valueCell = document.createElement('td');
+
+                    dateCell.innerHTML = tempData.date;
+                    valueCell.innerHTML = tempData.value;
+
+                    row.appendChild(dateCell);
+                    row.appendChild(valueCell);
+                    table.appendChild(row);
+                });
+
+                const chartArray = [];
+                const timeArray = [];
+
+                body.hourly.time.forEach((element, index) => {
+                    timeArray.push(element);
+                    chartArray.push(body.hourly.temperature_2m[index]);
+                });
+
+
+                temperatureChart.data.labels = timeArray;
+                temperatureChart.data.datasets[0].data = chartArray;
+                temperatureChart.update();
+            }
+
+        }
+
+        async function fetchWeatherData() {
+            const startDate = startDateInput.value ? startDateInput.value : getCurrentDate();
+            const endDate = endDateInput.value ? endDateInput.value : getCurrentDate();
+
+            if (isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
+                if (!historyChecker.checked) {
+                    const sixMonthsAgo = new Date();
+                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+                    const sevenDaysInFuture = new Date();
+                    sevenDaysInFuture.setDate(sevenDaysInFuture.getDate() + 7);
+
+                    if (new Date(startDate) < sixMonthsAgo || new Date(endDate) < sixMonthsAgo || new Date(endDate) > sevenDaysInFuture) {
+                        alert("Das Datum darf nicht älter als 6 Monate sein und nicht weiter als 7 Tage in der Zukunft liegen.");
+                    } else {
+                        var latitude = locationSelect.getAttribute('data-lat')
+                        var longitude = locationSelect.getAttribute('data-long')
+                        await callToApi("https://api.open-meteo.com/v1/forecast?latitude=" + latitude + "&longitude=" + longitude + "&hourly=temperature_2m&start_date=" + startDate + "&end_date=" + endDate);
+                    }
+                } else if (historyChecker.checked) {
+                    const minDate = new Date(1970, 0, 1);
+                    const minTwoDaysAgo = new Date();
+                    minTwoDaysAgo.setDate(minTwoDaysAgo.getDate() - 2);
+
+                    if (new Date(startDate) < minDate || new Date(endDate) < minDate || new Date(startDate) > minTwoDaysAgo || new Date(endDate) > minTwoDaysAgo) {
+                        alert("Das Datum darf nicht älter als 1970 sein und muss mindestens 2 Tage alt sein.");
+                    } else {
+                        var latitude = locationSelect.getAttribute('data-lat')
+                        var longitude = locationSelect.getAttribute('data-long')
+                        await callToApi("https://archive-api.open-meteo.com/v1/archive?latitude=" + latitude + "&longitude=" + longitude + "&start_date=" + startDate + "&end_date=" + endDate + "&hourly=temperature_2m");
+                    }
+                }
+            } else {
+                console.error("Invalid date format");
+            }
+        }
+
+        chartTableSwitch.addEventListener('change', function () {
+            const isChart = this.checked;
+            const tableContainer = document.getElementById('tableContainer');
+            const chartContainer = document.getElementById('chartContainer');
+
+            if (isChart) {
+                tableContainer.style.display = 'none';
+                chartContainer.style.display = 'block';
+            } else {
+                tableContainer.style.display = 'block';
+                chartContainer.style.display = 'none';
+            }
+            fetchWeatherData();
+        });
+
+        locationSelect.addEventListener('input', async function () {
+            const selectedLocation = this.value;
+
+            if (selectedLocation) {
+                const apiUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${selectedLocation}`;
+
+                const response = await fetch(apiUrl);
+                console.info("HTTP-Status: Code " + response.status);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    locationList.innerHTML = ''; // Leere die Liste
+
+                    if (data.results) {
+                        data.results.forEach((location => {
+                            const locationItem = document.createElement('div');
+                            locationItem.classList.add('location-item');
+                            locationItem.innerHTML = `
+                                    <span class="location-name">${location.name}</span>
+                                    <span class="location-state">${location.admin1}</span>
+                                    <span class="location-country">${location.country}</span>
+                                `;
+                            
+                                let pattern = new RegExp(location.name, 'gi');
+                                let result = pattern.test(locationSelect.value);
+                                matched = result ? true : false;
+
+                            if (matched) {
+                                locationSelect.setAttribute('data-long', location.longitude)
+                                locationSelect.setAttribute('data-lat', location.latitude)
+                            } else {
+                                locationSelect.removeAttribute('data-long');
+                                locationSelect.removeAttribute('data-lat');
+                            }
+
+                            locationItem.addEventListener('click', () => {
+                                locationSelect.value = location.name;
+                                locationSelect.setAttribute('data-long', location.longitude)
+                                locationSelect.setAttribute('data-lat', location.latitude)
+                                locationList.innerHTML = '';
+                            });
+
+                            locationList.appendChild(locationItem);
+                        }))
+                    }
+                } else {
+                    console.error('Fehler beim Abrufen der Daten');
+                }
+            }
+        });
+
+        dateInputs.forEach(input => {
+            input.addEventListener('input', function () {
+                const inputValue = this.value;
+                if (!isValidDateFormat(inputValue)) {
+                    this.classList.add('invalid');
+                } else {
+                    this.classList.remove('invalid');
+                }
+            });
+
+            // Beispiel: Ein Klick auf einen Button, um die Werte zu erhalten
+            const submitButton = document.getElementById('submitButton');
+            submitButton.addEventListener('click', fetchWeatherData);
+        });
+    });
+</script>
+
+<body>
+
+    <div class="header">
+        <div class="form-container">
+            <label for="location">Ort:</label>
+            <input type="text" id="location" class="location-input" placeholder="Ort eingeben">
+
+            <div id="locationList" class="location-list"></div>
+
+            <label for="startDate">Start Date:</label>
+            <input type="text" id="startDate" class="date-input" placeholder="YYYY-MM-DD">
+
+            <label for="endDate">End Date:</label>
+            <input type="text" id="endDate" class="date-input" placeholder="YYYY-MM-DD">
+
+            <label for="historyChecker">Historical Switch:</label>
+            <div class="switch-container">
+                <input type="checkbox" id="historyChecker" class="switch-input">
+                <label for="historyChecker" class="switch-label"></label>
+            </div>
+
+            <label for="chartTableSwitch">Use Graph:</label>
+            <div class="switch-container">
+                <input type="checkbox" id="chartTableSwitch" class="switch-input">
+                <label for="chartTableSwitch" class="switch-label"></label>
+            </div>
+        </div>
+
+        <div class="submit-container">
+            <input type="submit" value="Update" class="submit-button" id="submitButton">
+        </div>
+    </div>
+
+    <div id="tableContainer">
+        <table class="">
+            <thead>
+                <tr>
+                    <th>
+                        Datum
+                    </th>
+                    <th>
+                        Wert
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="tempTable">
+
+            </tbody>
+        </table>
+    </div>
+
+    <div id="chartContainer" style="display: none;" class="chart-container">
+        <canvas id="temperatureChart"></canvas>
+    </div>
+</body>
+
+</html>

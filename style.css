@@ -1,0 +1,142 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+label {
+    font: bold;
+}
+
+.header {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s;
+}
+
+.header:hover {
+    background-color: #e0e0e0;
+}
+
+.location-input,
+.date-input {
+    width: 200px;
+    padding: 8px;
+    margin: 5px;
+}
+
+.invalid {
+    border: 2px solid red;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th,
+td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+tr:hover {
+    background-color: #838383;
+}
+
+.switch-container {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch-input {
+    display: none;
+}
+
+.switch-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ddd;
+    border-radius: 34px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.switch-input:checked+.switch-label {
+    background-color: #007BFF;
+    /* Beispiel-Farbe für den ausgewählten Zustand */
+}
+
+.switch-label::before {
+    content: "";
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: white;
+    top: 4px;
+    left: 4px;
+    transition: transform 0.3s;
+}
+
+.switch-input:checked+.switch-label::before {
+    transform: translateX(26px);
+}
+
+.submit-button {
+    background-color: #007BFF;
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+/* Stil für den Button beim Überfahren */
+.submit-button:hover {
+    background-color: #0056b3;
+    /* Dunkleres Blau beim Überfahren */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    /* Leichte Schattierung beim Überfahren */
+}
+
+/* Stil für den Button beim Drücken */
+.submit-button:active {
+    background-color: #004080;
+    /* Noch dunkleres Blau beim Drücken */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+    /* Innen-Schattierung beim Drücken */
+}
+
+.form-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.date-input,
+.switch-container,
+.submit-button {
+    margin-right: 10px;
+}
+
+.hidden {
+    display: none;
+}
