@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://unpkg.com/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://unpkg.com/tippy.js@6.3.1/dist/tippy-bundle.umd.min.js"></script>
     <title>Weather App</title>
     <link rel="icon" href="weather-partly-cloudy.png">
 </head>
@@ -20,8 +22,12 @@
         const chartTableSwitch = document.getElementById('chartTableSwitch');
         const tableContainer = document.getElementById('tableContainer');
         const chartContainer = document.getElementById('chartContainer');
-        const updateButton = document.getElementById('submitButton')
-        var yAxis = null;
+        const updateButton = document.getElementById('submitButton');
+        var tempArray = [];
+        var timeArray = [];
+        var clusters = {};
+
+        var yAxis = {};
         var url = "";
         var mean = 0;
         var median = 0;
@@ -33,6 +39,7 @@
 
         const locationList = document.getElementById('locationList');
         const locationSelect = document.getElementById('location');
+        const clusterSwitch = document.getElementById('clusterSwitch');
 
         if (chartTableSwitch.checked) {
             tableContainer.style.display = 'none';
@@ -41,6 +48,19 @@
             tableContainer.style.display = 'block';
             chartContainer.style.display = 'none';
         }
+
+        tippy('#startDate[title]', {
+            theme: 'custom-tooltip-theme', // Verwende das benutzerdefinierte Theme
+            arrow: true, // Zeige einen Pfeil an
+            animation: 'shift-away-subtle', // Verwende eine Animation
+        });
+
+        // Initialisiere Tippy für Enddatum
+        tippy('#endDate[title]', {
+            theme: 'custom-tooltip-theme', // Verwende das benutzerdefinierte Theme
+            arrow: true, // Zeige einen Pfeil an
+            animation: 'shift-away-subtle', // Verwende eine Animation
+        });
 
         const temperatureChart = new Chart(document.getElementById("temperatureChart"), {
             type: "scatter",
@@ -157,6 +177,7 @@
                 }
 
                 event.target.value = inputValue;
+                
             });
 
             inputField.addEventListener('blur', function (event) {
@@ -164,6 +185,7 @@
                 var parts = inputValue.split('.');
 
                 event.target.value = fillDate(parts);
+                validateDateInputs()
             });
         }
 
@@ -182,10 +204,29 @@
             return `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
 
+        function validateDateInputs() {
+            const startDate = new Date(reverseDate(startDateInput.value));
+            const endDate = new Date(reverseDate(endDateInput.value));
+
+            if (startDate > endDate) {
+                startDateInput.classList.add('invalid');
+                endDateInput.classList.add('invalid');
+                startDateInput.title = "Start Date can not be larger then End Date";
+                endDateInput.title = "End Date can not be smaller then Start Date";
+            } else {
+                startDateInput.classList.remove('invalid');
+                endDateInput.classList.remove('invalid');
+                startDateInput.title = "";
+                endDateInput.title = "";
+            }
+
+            checkIfButtonIsActiv();
+        }
+
         function isValidDateFormat(dateString, checkReverse = false) {
-            var dateRegex = /^(0[1-9]|[1-2][0-9]|3[0-1])-(0[1-9]|1[0-2])-\d{4}$/;
+            var dateRegex = /^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[012])\.(19|20)\d\d$/;
             if (checkReverse) {
-                dateRegex = /^(19[789]\d|20[012]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+                dateRegex = /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/;
             }
             return dateRegex.test(dateString);
         }
@@ -319,6 +360,47 @@
             }
             return color;
         }
+
+        function setDataToChart() {
+            temperatureChart.data.datasets = []
+            const clusterColor = getRandomColor();
+
+            if(clusterSwitch.checked) {
+                clusters.forEach((cluster, index) => {
+                    const clusterDataset = {
+                        label: `Cluster-${(index + 1)} Temperatur:`,
+                        data: cluster.map(point => ({
+                            x: point.xValue,
+                            y: point.yValue,
+                            clusterNumber: index
+                        })),
+                        fill: false,
+                        borderColor: clusterColor,
+                        backgroundColor: clusterColor,
+                        pointRadius: 6,
+                        showLine: true,
+                        pointHoverRadius: 8,
+                    };
+                    temperatureChart.data.datasets.push(clusterDataset);
+                });
+            } else {
+                console.log(tempArray);
+                temperatureChart.data = {
+                    labels: timeArray,
+                    datasets: [{
+                        label: 'Temperatur',
+                        data: tempArray,
+                        fill: false,
+                        borderColor: clusterColor,
+                        backgroundColor: clusterColor,
+                        pointRadius: 6,
+                        showLine: true,
+                        pointHoverRadius: 8,
+                    }],
+                }
+                temperatureChart.update();
+            }
+        }
  
         async function callToApi(url) {
             const response = await fetch(url);
@@ -326,11 +408,9 @@
 
             if (response.ok) {
                 const body = await response.json();
-                const tempArray = [];
-                const timeArray = [];
                 const temperatureUnit = body.hourly_units.temperature_2m;
 
-                yAxes = [{
+                yAxes = {
                     ticks: {
                         callback: function (value) {
                             return value + temperatureUnit;
@@ -340,7 +420,7 @@
                         display: true,
                         labelString: 'Temperature'
                     }
-                }];
+                };
 
                 body.hourly.time.forEach((element, index) => {
                     element = element.replace('T', ' ');
@@ -364,7 +444,7 @@
                     });
                 }
 
-                const clusters = calculateCluster(tempCoordinates);
+                clusters = calculateCluster(tempCoordinates);
 
                 const coordinates= tempCoordinates.map(item => ({
                     xValue: new Date(item.xValue),
@@ -373,7 +453,6 @@
                 }));
 
                 if (chartTableSwitch.checked) {;
-
                     if (isWithin24Hours(timeArray[0], timeArray[timeArray.length - 1])) {
                         temperatureChart.options.scales.x.time.unit = 'hour';
                         temperatureChart.options.title.text = `Temperatur über die Zeit - ${timeArray[0].toLocaleDateString()}`;
@@ -381,29 +460,7 @@
                         temperatureChart.options.scales.x.time.unit = 'day';
                         temperatureChart.options.title.text = 'Temperatur über die Zeit';
                     }
-
-                    temperatureChart.data.datasets = []
-
-                    clusters.forEach((cluster, index) => {
-                        const clusterColor = getRandomColor();
-                        const clusterDataset = {
-                            label: `Cluster-${(index + 1)} Temperatur:`,
-                            data: cluster.map(point => ({
-                                x: point.xValue,
-                                y: point.yValue,
-                                clusterNumber: index
-                            })),
-                            fill: false,
-                            borderColor: clusterColor,
-                            backgroundColor: clusterColor,
-                            pointRadius: 6,
-                            showLine: true,
-                            pointHoverRadius: 8,
-                        };
-                        temperatureChart.data.datasets.push(clusterDataset);
-                    });
-
-                    temperatureChart.update();
+                    setDataToChart()
                 } else {
                     const table = document.getElementById("tempTable");
                     while (table.firstChild) {
@@ -433,18 +490,24 @@
 
             if (!isValidLocation) {
                 locationSelect.classList.add('invalid');
+                locationSelect.title = "Must be a valid Location"
             } else {
                 locationSelect.classList.remove('invalid');
+                locationSelect.title = ""
             }
 
             checkIfButtonIsActiv();
         }
 
         function checkIfButtonIsActiv() {
-            if (locationSelect.classList.contains('invalid') || startDateInput.classList.contains('invalid') || endDateInput.classList.contains('invalid')) {
-                updateButton.disabled
+            const isLocationInvalid = locationSelect.classList.contains('invalid');
+            console.log(1)
+            if (isLocationInvalid) {
+                updateButton.setAttribute('disabled', 'true');
+                updateButton.style.pointerEvents = 'none';
             } else {
-                updateButton.enable
+                updateButton.removeAttribute('disabled');
+                updateButton.style.pointerEvents = 'auto';
             }
         }
 
@@ -487,6 +550,10 @@
                 console.error("Invalid date format", startDate, endDate);
             }
         }
+
+        clusterSwitch.addEventListener('change', function () {
+            setDataToChart()
+        });
 
         chartTableSwitch.addEventListener('change', function () {
             const isChart = this.checked;
@@ -541,8 +608,10 @@
                                 locationSelect.setAttribute('data-lat', location.latitude)
                                 locationList.innerHTML = '';
                                 locationList.style.display = 'none';
+                                validateLocation()
                             });
 
+                            validateLocation()
                             locationList.appendChild(locationItem);
                         }))
 
@@ -557,19 +626,10 @@
         });
 
         dateInputs.forEach(input => {
-            input.addEventListener('input', function () {
-                const inputValue = this.value;
-                if (!isValidDateFormat(inputValue)) {
-                    this.classList.add('invalid');
-                } else {
-                    this.classList.remove('invalid');
-                }
-                checkIfButtonIsActiv()
-            });
-
-            const submitButton = document.getElementById('submitButton');
-            submitButton.addEventListener('click', fetchWeatherData);
+            input.addEventListener('change', validateDateInputs);
         });
+
+        updateButton.addEventListener('click', fetchWeatherData);
     });
 </script>
 
@@ -600,10 +660,16 @@
                 <input type="checkbox" id="chartTableSwitch" class="switch-input">
                 <label for="chartTableSwitch" class="switch-label"></label>
             </div>
+
+            <label for="clusterSwitch">Show Cluster:</label>
+            <div class="switch-container">
+                <input type="checkbox" id="clusterSwitch" class="switch-input">
+                <label for="clusterSwitch" class="switch-label"></label>
+            </div>
         </div>
 
         <div class="submit-container">
-            <input type="submit" value="Update" class="submit-button" id="submitButton">
+            <input type="submit" value="Update" class="submit-button" id="submitButton" disabled>
         </div>
     </div>
 

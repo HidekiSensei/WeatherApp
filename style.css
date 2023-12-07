@@ -30,8 +30,36 @@ label {
     border-radius: 5px;
 }
 
-.invalid {
-    border: 2px solid red;
+input.invalid {
+    border: 1px solid red; /* Roter Rahmen für ungültige Eingabefelder */
+}
+
+input.invalid:hover {
+    border: 1px solid red; /* Behalte den roten Rahmen bei, wenn der Mauszeiger über dem Eingabefeld ist */
+}
+
+input.invalid:invalid {
+    background-color: #FFE6E6; /* Hintergrundfarbe für ungültige Eingabefelder */
+}
+
+input.invalid:hover:invalid {
+    background-color: #FFE6E6; /* Behalte die Hintergrundfarbe bei, wenn der Mauszeiger über dem Eingabefeld ist */
+}
+
+input.invalid:focus {
+    outline: none; /* Entferne den Standard-Fokus-Rahmen für ungültige Eingabefelder */
+}
+
+.custom-tooltip-theme {
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.custom-tooltip-theme .tippy-arrow {
+    color: #333;
 }
 
 table {
@@ -124,6 +152,13 @@ tr:hover {
     /* Noch dunkleres Blau beim Drücken */
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
     /* Innen-Schattierung beim Drücken */
+}
+
+.submit-button:disabled {
+    background-color: #dddddd; /* Use your preferred gray color */
+    color: #888888; /* Text color for disabled state */
+    opacity: 0.7; /* Adjust opacity as needed */
+    cursor: not-allowed; /* Show a not-allowed cursor for disabled state */
 }
 
 .form-container {
