@@ -137,17 +137,16 @@
 
         function getCurrentDate() {
             const currentTime = new Date();
-            const day = currentTime.getDate() - 1;
+            const day = currentTime.getDate();
             const month = currentTime.getMonth() + 1;
             const year = currentTime.getFullYear();
 
             const formattedDay = day < 10 ? "0" + day : day;
             const formattedMonth = month < 10 ? "0" + month : month;
 
-            const startDate = year + "-" + formattedMonth + "-" + formattedDay;
-            const endDate = year + "-" + formattedMonth + "-" + formattedDay;
+            const date = formattedDay + "." + formattedMonth + "." + year;
 
-            return startDate
+            return date
         }
 
         async function callToApi(url) {
