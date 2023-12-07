@@ -219,7 +219,7 @@
                 coordinates = runKMeans(coordinates, numClusters);
                 numClusters++;
             }
-            console.log(numClusters);
+
             let resultClusters = [];
             for (let i = 0; i < numClusters; i++) {
                 const clusterPoints = coordinates.filter(point => point.clusterIndex === i);
@@ -383,7 +383,7 @@
                     }
 
                     temperatureChart.data.datasets = []
-                    
+
                     clusters.forEach((cluster, index) => {
                         const clusterColor = getRandomColor();
                         const clusterDataset = {
