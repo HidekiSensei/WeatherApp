@@ -7,8 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="https://unpkg.com/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://unpkg.com/tippy.js@6.3.1/dist/tippy-bundle.umd.min.js"></script>
     <title>Weather App</title>
     <link rel="icon" href="weather-partly-cloudy.png">
 </head>
@@ -22,11 +20,7 @@
         const chartTableSwitch = document.getElementById('chartTableSwitch');
         const tableContainer = document.getElementById('tableContainer');
         const chartContainer = document.getElementById('chartContainer');
-        const updateButton = document.getElementById('submitButton');
-        var tempArray = [];
-        var timeArray = [];
-        var clusters = {};
-
+        const updateButton = document.getElementById('submitButton')
         var yAxis = {};
         var url = "";
         var mean = 0;
@@ -36,10 +30,11 @@
         var max = 0;
         var span = 0;
         var std = 0;
+        var avgTemperatureArray = [];
+        var avgHumidityArray = [];
 
         const locationList = document.getElementById('locationList');
         const locationSelect = document.getElementById('location');
-        const clusterSwitch = document.getElementById('clusterSwitch');
 
         if (chartTableSwitch.checked) {
             tableContainer.style.display = 'none';
@@ -48,19 +43,6 @@
             tableContainer.style.display = 'block';
             chartContainer.style.display = 'none';
         }
-
-        tippy('#startDate[title]', {
-            theme: 'custom-tooltip-theme', // Verwende das benutzerdefinierte Theme
-            arrow: true, // Zeige einen Pfeil an
-            animation: 'shift-away-subtle', // Verwende eine Animation
-        });
-
-        // Initialisiere Tippy für Enddatum
-        tippy('#endDate[title]', {
-            theme: 'custom-tooltip-theme', // Verwende das benutzerdefinierte Theme
-            arrow: true, // Zeige einen Pfeil an
-            animation: 'shift-away-subtle', // Verwende eine Animation
-        });
 
         const temperatureChart = new Chart(document.getElementById("temperatureChart"), {
             type: "scatter",
@@ -107,13 +89,16 @@
             console.info(`Mean: ${mean}\nMedian: ${median}\nVariance: ${variance}\nStandard Deviation: ${std}\nMin: ${min}\nMax: ${max}\nSpan: ${span}`)
         }
 
-        function calculateMean(values) {
+        function calculateMean(values, limit = 0, startpoint = 0) {
             var sumOfValues = 0;
-            for (i = 0; i < values.length; i++) {
+            if (limit === 0) {
+                limit = values.length
+            }
+            for (let i = startpoint; i < (limit + startpoint); i++) {
                 sumOfValues += values[i]
             }
 
-            return sumOfValues / values.length
+            return sumOfValues / limit
         }
 
         function calcualteMedian(values) {
@@ -177,7 +162,6 @@
                 }
 
                 event.target.value = inputValue;
-                
             });
 
             inputField.addEventListener('blur', function (event) {
@@ -185,7 +169,6 @@
                 var parts = inputValue.split('.');
 
                 event.target.value = fillDate(parts);
-                validateDateInputs()
             });
         }
 
@@ -204,29 +187,10 @@
             return `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
 
-        function validateDateInputs() {
-            const startDate = new Date(reverseDate(startDateInput.value));
-            const endDate = new Date(reverseDate(endDateInput.value));
-
-            if (startDate > endDate) {
-                startDateInput.classList.add('invalid');
-                endDateInput.classList.add('invalid');
-                startDateInput.title = "Start Date can not be larger then End Date";
-                endDateInput.title = "End Date can not be smaller then Start Date";
-            } else {
-                startDateInput.classList.remove('invalid');
-                endDateInput.classList.remove('invalid');
-                startDateInput.title = "";
-                endDateInput.title = "";
-            }
-
-            checkIfButtonIsActiv();
-        }
-
         function isValidDateFormat(dateString, checkReverse = false) {
-            var dateRegex = /^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[012])\.(19|20)\d\d$/;
+            var dateRegex = /^(0[1-9]|[1-2][0-9]|3[0-1])-(0[1-9]|1[0-2])-\d{4}$/;
             if (checkReverse) {
-                dateRegex = /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/;
+                dateRegex = /^(19[789]\d|20[012]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
             }
             return dateRegex.test(dateString);
         }
@@ -251,14 +215,16 @@
         }
 
         function calculateCluster(coordinates) {
-            const threshold = 0.1;
-            let numClusters = 2;
+            const threshold = 0.05;
+            let numClusters = 3;
             let prevClusters = [];
 
             while (!areClustersStable(prevClusters, coordinates, threshold)) {
                 prevClusters = coordinates.map(point => ({ xValue: point.xValue, yValue: point.yValue }));
                 coordinates = runKMeans(coordinates, numClusters);
-                numClusters++;
+                if (!areClustersStable(prevClusters, coordinates, threshold)) {
+                    numClusters++
+                }
             }
 
             let resultClusters = [];
@@ -361,56 +327,90 @@
             return color;
         }
 
-        function setDataToChart() {
-            temperatureChart.data.datasets = []
-            const clusterColor = getRandomColor();
-
-            if(clusterSwitch.checked) {
-                clusters.forEach((cluster, index) => {
-                    const clusterDataset = {
-                        label: `Cluster-${(index + 1)} Temperatur:`,
-                        data: cluster.map(point => ({
-                            x: point.xValue,
-                            y: point.yValue,
-                            clusterNumber: index
-                        })),
-                        fill: false,
-                        borderColor: clusterColor,
-                        backgroundColor: clusterColor,
-                        pointRadius: 6,
-                        showLine: true,
-                        pointHoverRadius: 8,
-                    };
-                    temperatureChart.data.datasets.push(clusterDataset);
-                });
-            } else {
-                console.log(tempArray);
-                temperatureChart.data = {
-                    labels: timeArray,
-                    datasets: [{
-                        label: 'Temperatur',
-                        data: tempArray,
-                        fill: false,
-                        borderColor: clusterColor,
-                        backgroundColor: clusterColor,
-                        pointRadius: 6,
-                        showLine: true,
-                        pointHoverRadius: 8,
-                    }],
+        function calculateAverageOfDays(locations) {
+            avgTemperatureArray = [];
+            avgHumidityArray = []
+            locations.forEach(data => {
+                for (i = 0; i < (data.hourly.time.length / 24); i++) {
+                    var meanTemperature = calculateMean(data.hourly.temperature_2m, 24, i * 24)
+                    var meanHumidity = calculateMean(data.hourly.relative_humidity_2m, 24, i * 24)
+                    console.log(data.hourly.relative_humidity_2m)
+                    avgTemperatureArray.push(meanTemperature)
+                    avgHumidityArray.push(meanHumidity)
                 }
-                temperatureChart.update();
-            }
+            })
         }
- 
+
+        async function clusterApiCall() {
+            var startDate = startDateInput.value ? startDateInput.value : getCurrentDate();
+            var endDate = endDateInput.value ? endDateInput.value : getCurrentDate();
+
+            startDate = reverseDate(startDate)
+            endDate = reverseDate(endDate)
+
+            const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=36.7202,41.3888,40.4165,47.795,53.5507,50.1155,60.1695,66.5,61.4991&longitude=-4.4203,2.159,-3.7026,12.5338,9.993,8.6842,24.9354,25.7167,23.7871&hourly=temperature_2m,relative_humidity_2m&start_date=" + startDate + "&end_date=" + endDate)
+
+            if (response.ok) {
+                const body = await response.json();
+                calculateAverageOfDays(body);
+                var tempCoordinates = [];
+
+                for (i = 0; i < avgTemperatureArray.length; i++) {
+                    tempCoordinates.push({
+                        xValue: avgTemperatureArray[i],
+                        yValue: avgHumidityArray[i],
+                        clusterNumber: null
+                    });
+                }
+                console.log(tempCoordinates);
+                const clusters = calculateCluster(tempCoordinates);
+
+                const coordinates = tempCoordinates.map(item => ({
+                    xValue: item.xValue,
+                    yValue: item.yValue,
+                    clusterNumber: item.clusterNumber
+                }));
+
+                if (chartTableSwitch.checked) {
+
+                    temperatureChart.data.datasets = []
+
+                    clusters.forEach((cluster, index) => {
+                        const clusterColor = getRandomColor();
+                        const clusterDataset = {
+                            label: `Cluster-${(index + 1)}`,
+                            data: cluster.map(point => ({
+                                x: point.xValue,
+                                y: point.yValue,
+                                clusterNumber: index
+                            })),
+                            fill: false,
+                            borderColor: clusterColor,
+                            backgroundColor: clusterColor,
+                            pointRadius: 6,
+                            showLine: true,
+                            pointHoverRadius: 8,
+                        };
+                        temperatureChart.data.datasets.push(clusterDataset);
+                    });
+
+                    temperatureChart.update();
+                }
+            }
+
+        }
+
         async function callToApi(url) {
             const response = await fetch(url);
             console.info("HTTP-Status: Code " + response.status + "\nURL: " + url);
 
             if (response.ok) {
                 const body = await response.json();
+                const tempArray = [];
+                const timeArray = [];
                 const temperatureUnit = body.hourly_units.temperature_2m;
 
-                yAxes = {
+                yAxes = [{
                     ticks: {
                         callback: function (value) {
                             return value + temperatureUnit;
@@ -420,7 +420,7 @@
                         display: true,
                         labelString: 'Temperature'
                     }
-                };
+                }];
 
                 body.hourly.time.forEach((element, index) => {
                     element = element.replace('T', ' ');
@@ -444,15 +444,17 @@
                     });
                 }
 
-                clusters = calculateCluster(tempCoordinates);
+                const clusters = calculateCluster(tempCoordinates);
 
-                const coordinates= tempCoordinates.map(item => ({
+                const coordinates = tempCoordinates.map(item => ({
                     xValue: new Date(item.xValue),
                     yValue: item.yValue,
                     clusterNumber: item.clusterNumber
                 }));
 
-                if (chartTableSwitch.checked) {;
+                if (chartTableSwitch.checked) {
+                    ;
+
                     if (isWithin24Hours(timeArray[0], timeArray[timeArray.length - 1])) {
                         temperatureChart.options.scales.x.time.unit = 'hour';
                         temperatureChart.options.title.text = `Temperatur über die Zeit - ${timeArray[0].toLocaleDateString()}`;
@@ -460,7 +462,29 @@
                         temperatureChart.options.scales.x.time.unit = 'day';
                         temperatureChart.options.title.text = 'Temperatur über die Zeit';
                     }
-                    setDataToChart()
+
+                    temperatureChart.data.datasets = []
+
+                    clusters.forEach((cluster, index) => {
+                        const clusterColor = getRandomColor();
+                        const clusterDataset = {
+                            label: `Cluster-${(index + 1)} Temperatur:`,
+                            data: cluster.map(point => ({
+                                x: point.xValue,
+                                y: point.yValue,
+                                clusterNumber: index
+                            })),
+                            fill: false,
+                            borderColor: clusterColor,
+                            backgroundColor: clusterColor,
+                            pointRadius: 6,
+                            showLine: true,
+                            pointHoverRadius: 8,
+                        };
+                        temperatureChart.data.datasets.push(clusterDataset);
+                    });
+
+                    temperatureChart.update();
                 } else {
                     const table = document.getElementById("tempTable");
                     while (table.firstChild) {
@@ -490,24 +514,18 @@
 
             if (!isValidLocation) {
                 locationSelect.classList.add('invalid');
-                locationSelect.title = "Must be a valid Location"
             } else {
                 locationSelect.classList.remove('invalid');
-                locationSelect.title = ""
             }
 
             checkIfButtonIsActiv();
         }
 
         function checkIfButtonIsActiv() {
-            const isLocationInvalid = locationSelect.classList.contains('invalid');
-            console.log(1)
-            if (isLocationInvalid) {
-                updateButton.setAttribute('disabled', 'true');
-                updateButton.style.pointerEvents = 'none';
+            if (locationSelect.classList.contains('invalid') || startDateInput.classList.contains('invalid') || endDateInput.classList.contains('invalid')) {
+                updateButton.disabled
             } else {
-                updateButton.removeAttribute('disabled');
-                updateButton.style.pointerEvents = 'auto';
+                updateButton.enable
             }
         }
 
@@ -550,10 +568,6 @@
                 console.error("Invalid date format", startDate, endDate);
             }
         }
-
-        clusterSwitch.addEventListener('change', function () {
-            setDataToChart()
-        });
 
         chartTableSwitch.addEventListener('change', function () {
             const isChart = this.checked;
@@ -608,10 +622,8 @@
                                 locationSelect.setAttribute('data-lat', location.latitude)
                                 locationList.innerHTML = '';
                                 locationList.style.display = 'none';
-                                validateLocation()
                             });
 
-                            validateLocation()
                             locationList.appendChild(locationItem);
                         }))
 
@@ -626,10 +638,22 @@
         });
 
         dateInputs.forEach(input => {
-            input.addEventListener('change', validateDateInputs);
-        });
+            input.addEventListener('input', function () {
+                const inputValue = this.value;
+                if (!isValidDateFormat(inputValue)) {
+                    this.classList.add('invalid');
+                } else {
+                    this.classList.remove('invalid');
+                }
+                checkIfButtonIsActiv()
+            });
 
-        updateButton.addEventListener('click', fetchWeatherData);
+            const clusterCallButton = document.getElementById('clusterCall');
+            clusterCallButton.addEventListener('click', clusterApiCall);
+
+            const submitButton = document.getElementById('submitButton');
+            submitButton.addEventListener('click', fetchWeatherData);
+        });
     });
 </script>
 
@@ -660,16 +684,11 @@
                 <input type="checkbox" id="chartTableSwitch" class="switch-input">
                 <label for="chartTableSwitch" class="switch-label"></label>
             </div>
-
-            <label for="clusterSwitch">Show Cluster:</label>
-            <div class="switch-container">
-                <input type="checkbox" id="clusterSwitch" class="switch-input">
-                <label for="clusterSwitch" class="switch-label"></label>
-            </div>
         </div>
 
         <div class="submit-container">
-            <input type="submit" value="Update" class="submit-button" id="submitButton" disabled>
+            <input type="submit" value="Update" class="submit-button" id="submitButton">
+            <input type="submit" value="Generate Cluster" class="submit-button" id="clusterCall">
         </div>
     </div>
 
